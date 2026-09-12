@@ -87,10 +87,27 @@
     if (!is_open && menu.contains(document.activeElement)) {
       (toggle_btn || document.body).focus();
     }
+    if (!is_open) {
+      if (menu.contains(document.activeElement)) {
+        if (toggle) {
+          toggle.focus();
+        } else {
+          document.body.focus();
+        }
+      }
+      document.body.style.overflow = '';
+    } else {
+      document.body.style.overflow = 'hidden';
+    }
 
     menu.classList.toggle('open', is_open);
     menu.setAttribute('aria-hidden', String(!is_open));
-    menu.toggleAttribute('inert', !is_open);
+
+    if (is_open) {
+      menu.removeAttribute('inert');
+    } else {
+      menu.setAttribute('inert', '');
+    }
 
     if (toggle_btn) toggle_btn.setAttribute('aria-expanded', String(is_open));
   }
