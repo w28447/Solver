@@ -80,21 +80,27 @@ body {
   inset: 0;
   z-index: 100;
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
   margin: 0;
   background: rgba(6, 6, 10, 0.96);
-  padding: 20px 18px env(safe-area-inset-bottom, 40px);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.menu-panel.open { 
+  display: flex; 
+  flex-direction: column;
+}
+
+.menu-panel-inner { 
+  max-width: 560px; 
+  width: 100%;
+  margin: 0 auto;
+  padding: calc(20px + env(safe-area-inset-top, 0px)) 18px calc(60px + env(safe-area-inset-bottom, 20px));
   box-sizing: border-box;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-}
-
-.menu-panel.open { display: block; }
-.menu-panel-inner { 
-  max-width: 560px; 
-  margin: 20px auto 60px; 
-  padding-bottom: env(safe-area-inset-bottom, 40px);
+  flex: 1;
 }
 
 .menu-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-weight: bold; }
