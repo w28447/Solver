@@ -41,24 +41,24 @@
       </div>
     </div>
 
-    <main class="app-shell">
-      <div class="share-panel">
-        <div class="share-row">
-          <label for="roomIdInput">ルームID</label>
-          <input id="roomIdInput" type="text" maxlength="20" autocomplete="off" placeholder="例: party-001" aria-label="ルームID" />
-          <button class="btn btn-primary" id="joinRoomBtn" type="button">適用</button>
-          <button class="btn btn-primary" id="copyRoomBtn" type="button">URLをコピー</button>
-          <button class="btn btn-leave" id="leaveRoomBtn" type="button">退出</button>
-        </div>
-        <div class="share-status-container">
-          <div class="share-status-row">
-            <div id="shareStatus" class="share-status">ローカルモード</div>
-            <div id="roomMetaInfo" class="room-meta-info"></div>
-          </div>
-          <div id="roomMemberListDropdown" class="room-member-list-dropdown"></div>
-        </div>
+    <div class="share-panel">
+      <div class="share-row">
+        <label for="roomIdInput">ルームID</label>
+        <input id="roomIdInput" type="text" maxlength="20" autocomplete="off" placeholder="例: party-001" aria-label="ルームID" />
+        <button class="btn btn-primary" id="joinRoomBtn" type="button">適用</button>
+        <button class="btn btn-primary" id="copyRoomBtn" type="button">URLをコピー</button>
+        <button class="btn btn-leave" id="leaveRoomBtn" type="button">退出</button>
       </div>
+      <div class="share-status-container">
+        <div class="share-status-row">
+          <div id="shareStatus" class="share-status">ローカルモード</div>
+          <div id="roomMetaInfo" class="room-meta-info"></div>
+        </div>
+        <div id="roomMemberListDropdown" class="room-member-list-dropdown"></div>
+      </div>
+    </div>
 
+    <main class="app-shell">
       <section class="panel">
         <div class="control-row control-row--gap">
           <span class="label label--block">プレイヤー人数</span>
@@ -90,11 +90,10 @@
       </section>
     </main>
 
-    <script src="../shared/shared.js"></script>
     <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-database-compat.js"></script>
-    <script src="./script.js"></script>
+    <script type="module" src="./script.js"></script>
   </body>
 </html>

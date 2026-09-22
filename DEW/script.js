@@ -1,3 +1,6 @@
+import { create_room_sync, bind_room_controls, touch_room_created_at } from '../shared/room.js';
+import { bind_menu_toggle, bind_show_home_button } from '../shared/menu.js';
+
 const DEFAULT_CANDIDATES = [
   { id: 'church', label: '教会時計', detail: '教会のドラゴンの上にある時計' },
   { id: 'radio', label: '教会機器', detail: '教会階段近くにある機器' },
@@ -82,7 +85,6 @@ const room_input = document.getElementById('roomIdInput');
 const join_room_btn = document.getElementById('joinRoomBtn');
 const copy_room_btn = document.getElementById('copyRoomBtn');
 const leave_room_btn = document.getElementById('leaveRoomBtn');
-const share_status = document.getElementById('shareStatus');
 const show_home_btn = document.getElementById('showHomeBtn');
 const menu_toggle_btn = document.getElementById('menuToggleBtn');
 const menu_close_btn = document.getElementById('menuCloseBtn');
@@ -185,15 +187,9 @@ if (show_area_title_editor_btn && area_title_editor && area_title_actions) {
   });
 }
 
-function update_share_status(message, is_error = false) {
-  if (!share_status) return;
-  share_status.textContent = message;
-  share_status.style.color = is_error ? '#ff8a8a' : '#93c5fd';
-}
-
-const room_sync = shared_util.create_room_sync({
+const room_sync = create_room_sync({
   room_path_prefix: 'derEisendracheRooms',
-  url_param: 'dew',
+  url_param: 'room',
   get_state_payload: () => ({
     selectedId: local_state.selected_id,
     playerCount: local_state.player_count,
@@ -215,9 +211,7 @@ const room_sync = shared_util.create_room_sync({
     if (Array.isArray(payload.history)) local_state.history = payload.history;
     update_ui();
   },
-  on_first_member_join: () => reset_state_to_default({ sync: true }),
-  on_room_ready: (room_ref) => shared_util.touch_room_created_at(room_ref),
-  on_status_change: update_share_status
+  on_room_ready: (room_ref) => touch_room_created_at(room_ref)
 });
 
 function get_valid_next_candidates() {
@@ -337,15 +331,14 @@ if (reset_btn) {
   reset_btn.addEventListener('click', () => reset_state_to_default({ sync: true }));
 }
 
-shared_util.bind_room_controls(
+bind_room_controls(
   { room_input, join_room_btn, copy_room_btn, leave_room_btn },
   room_sync,
-  'dew',
-  update_share_status
+  'dew'
 );
 
-shared_util.bind_menu_toggle(menu_toggle_btn, menu_close_btn, 'menuPanel', close_title_editor);
-shared_util.bind_show_home_button(show_home_btn);
+bind_menu_toggle(menu_toggle_btn, menu_close_btn, 'menuPanel', close_title_editor);
+bind_show_home_button(show_home_btn);
 
 document.addEventListener('DOMContentLoaded', () => {
   update_ui();

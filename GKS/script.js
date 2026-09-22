@@ -1,3 +1,7 @@
+import { create_room_sync, bind_room_controls, touch_room_created_at } from '../shared/room.js';
+import { bind_menu_toggle, bind_show_home_button, set_menu_open } from '../shared/menu.js';
+import { show_status } from '../shared/utils.js';
+
 const NETWORK = {
   Dept: { 1: 'Armo', 2: 'Infi', 3: 'Drag' },
   Drag: { 1: 'Supp', 2: 'Dept', 3: 'Infi' },
@@ -226,16 +230,9 @@ function reset_state_to_default({ sync = true } = {}) {
   if (sync) room_sync.sync_current_state();
 }
 
-function update_share_status(message, is_error = false) {
-  const status_node = document.getElementById('shareStatus');
-  if (!status_node) return;
-  status_node.textContent = message;
-  status_node.style.color = is_error ? '#ff8a8a' : '#93c5fd';
-}
-
-const room_sync = shared_util.create_room_sync({
+const room_sync = create_room_sync({
   room_path_prefix: 'gorodKroviRooms',
-  url_param: 'gks',
+  url_param: 'room',
   get_state_payload: () => ({
     selectedVals: { ...selected_vals },
     green: last_states.green,
@@ -266,9 +263,7 @@ const room_sync = shared_util.create_room_sync({
     sync_toggle_buttons_from_state();
     calculate();
   },
-  on_first_member_join: () => reset_state_to_default({ sync: true }),
-  on_room_ready: (room_ref) => shared_util.touch_room_created_at(room_ref),
-  on_status_change: update_share_status
+  on_room_ready: (room_ref) => touch_room_created_at(room_ref)
 });
 
 function init_precomputed_paths() {
@@ -428,23 +423,22 @@ document.addEventListener('DOMContentLoaded', () => {
   apply_room_title_labels();
   document.querySelectorAll('.dial-btn').forEach((btn) => btn.classList.remove('active'));
 
-  shared_util.bind_room_controls(
+  bind_room_controls(
     { room_input, join_room_btn, copy_room_btn, leave_room_btn },
     room_sync,
-    'gks',
-    update_share_status
+    'gks'
   );
 
-  shared_util.bind_menu_toggle(menu_toggle_btn, menu_close_btn, 'menuPanel', () => {
+  bind_menu_toggle(menu_toggle_btn, menu_close_btn, 'menuPanel', () => {
     set_area_title_editor_visible(false);
   });
 
-  shared_util.bind_show_home_button(show_home_btn);
+  bind_show_home_button(show_home_btn);
 
   if (show_area_title_editor_btn) {
     show_area_title_editor_btn.addEventListener('click', () => {
       set_area_title_editor_visible(true);
-      shared_util.set_menu_open('menuPanel', true);
+      set_menu_open('menuPanel', true);
     });
   }
 
@@ -459,8 +453,8 @@ document.addEventListener('DOMContentLoaded', () => {
       set_area_title_map(next_titles);
       apply_room_title_labels();
       set_area_title_editor_visible(false);
-      shared_util.set_menu_open('menuPanel', false);
-      update_share_status('エリア名を保存しました');
+      set_menu_open('menuPanel', false);
+      show_status('エリア名を保存しました');
     });
   }
 
@@ -477,8 +471,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       apply_room_title_labels();
       set_area_title_editor_visible(false);
-      shared_util.set_menu_open('menuPanel', false);
-      update_share_status('エリア名を初期値に戻しました');
+      set_menu_open('menuPanel', false);
+      show_status('エリア名を初期値に戻しました');
     });
   }
 
