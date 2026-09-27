@@ -168,7 +168,8 @@ function render_gum_icon(gum_name) {
           src="${img_path}" 
           alt="${gum_name}" 
           class="gum-img" 
-          loading="lazy" 
+          loading="lazy"
+          decoding="async"
           onerror="this.onerror=null; this.parentElement.innerHTML='<span class=\\'gum-fallback-icon\\'>${initial}</span>';"
         />
       </div>
