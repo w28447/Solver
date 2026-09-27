@@ -20,10 +20,6 @@ const ROOM_TEMPLATES = [
   { key: 'Tank', label: '戦車工場' }
 ];
 
-const room_keys = ROOM_TEMPLATES.map((t) => t.key);
-const room_bit = Object.fromEntries(ROOM_TEMPLATES.map((t, i) => [t.key, 1 << i]));
-const DEFAULT_ROOM_TITLES = Object.fromEntries(ROOM_TEMPLATES.map((t) => [t.key, t.label]));
-
 const ROOM_STATUS_TYPES = Object.freeze({
   GREEN: 'green',
   NOT_GREEN: 'notgreen',
@@ -32,26 +28,20 @@ const ROOM_STATUS_TYPES = Object.freeze({
 
 const ROOM_TITLE_KEY = 'gorodKroviRoomTitles';
 
+const room_keys = ROOM_TEMPLATES.map((t) => t.key);
+const room_bit = Object.fromEntries(ROOM_TEMPLATES.map((t, i) => [t.key, 1 << i]));
+const default_room_titles = Object.fromEntries(ROOM_TEMPLATES.map((t) => [t.key, t.label]));
+
 const selected_vals = Object.fromEntries(room_keys.map((k) => [k, null]));
+const precomputed_paths = new Map();
 let last_states = { green: null, password: null, not_greens: new Set() };
 
-const precomputed_paths = new Map();
-
-function set_area_title_editor_visible(is_visible) {
-  const area_title_editor = document.getElementById('areaTitleEditor');
-  const area_title_actions = document.getElementById('areaTitleActions');
-  const show_area_title_editor_btn = document.getElementById('showAreaTitleEditorBtn');
-  if (area_title_editor) area_title_editor.classList.toggle('hidden', !is_visible);
-  if (area_title_actions) area_title_actions.classList.toggle('hidden', !is_visible);
-  if (show_area_title_editor_btn) show_area_title_editor_btn.hidden = is_visible;
-}
-
 function get_area_title_map() {
-  const raw = localStorage.getItem(ROOM_TITLE_KEY) || JSON.stringify(DEFAULT_ROOM_TITLES);
+  const raw = localStorage.getItem(ROOM_TITLE_KEY) || JSON.stringify(default_room_titles);
   try {
-    return { ...DEFAULT_ROOM_TITLES, ...JSON.parse(raw) };
+    return { ...default_room_titles, ...JSON.parse(raw) };
   } catch (e) {
-    return { ...DEFAULT_ROOM_TITLES };
+    return { ...default_room_titles };
   }
 }
 
@@ -61,7 +51,7 @@ function set_area_title_map(map) {
 
 function reset_area_title_map() {
   localStorage.removeItem(ROOM_TITLE_KEY);
-  return { ...DEFAULT_ROOM_TITLES };
+  return { ...default_room_titles };
 }
 
 function get_area_short_label(title) {
@@ -72,7 +62,7 @@ function apply_room_title_labels() {
   const titles = get_area_title_map();
 
   room_keys.forEach((room_key) => {
-    const default_label = DEFAULT_ROOM_TITLES[room_key] || room_key;
+    const default_label = default_room_titles[room_key] || room_key;
     const label = titles[room_key] || default_label;
 
     const title_node = document.querySelector(`.room-card[data-room="${room_key}"] .room-title`);
@@ -90,58 +80,13 @@ function apply_room_title_labels() {
   });
 }
 
-function render_room_grid() {
-  const container = document.getElementById('roomGrid');
-  if (!container) return;
-
-  const titles = get_area_title_map();
-  container.innerHTML = ROOM_TEMPLATES.map(({ key, label }) => {
-    const title = titles[key] || label;
-    return `
-      <div class="room-card" data-room="${key}">
-        <div class="room-header">
-          <span class="room-title">${title}</span>
-          <div class="status-toggle">
-            <button type="button" class="status-btn" data-room="${key}" data-type="green">G</button>
-            <button type="button" class="status-btn" data-room="${key}" data-type="notgreen">B</button>
-            <button type="button" class="status-btn" data-room="${key}" data-type="password">P</button>
-          </div>
-        </div>
-        <div class="valves-container">
-          <div class="btn-group" data-room="${key}">
-            <button type="button" class="dial-btn" data-val="1">1</button>
-            <button type="button" class="dial-btn" data-val="2">2</button>
-            <button type="button" class="dial-btn" data-val="3">3</button>
-          </div>
-          <div class="prob-display" id="pr_${key}">1:33 2:33 3:33</div>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  document.querySelectorAll('.btn-group').forEach((group) => {
-    const room = group.dataset.room;
-    group.querySelectorAll('.dial-btn').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        const clicked_val = Number(e.target.dataset.val);
-        group.querySelectorAll('.dial-btn').forEach((b) => b.classList.remove('active'));
-
-        selected_vals[room] = selected_vals[room] === clicked_val ? null : clicked_val;
-        if (selected_vals[room] !== null) e.target.classList.add('active');
-
-        calculate();
-        room_sync.sync_current_state();
-      });
-    });
-  });
-
-  document.querySelectorAll('.status-btn').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      handle_state_toggle(e.target);
-      calculate();
-      room_sync.sync_current_state();
-    });
-  });
+function set_area_title_editor_visible(is_visible) {
+  const area_title_editor = document.getElementById('areaTitleEditor');
+  const area_title_actions = document.getElementById('areaTitleActions');
+  const show_area_title_editor_btn = document.getElementById('showAreaTitleEditorBtn');
+  if (area_title_editor) area_title_editor.classList.toggle('hidden', !is_visible);
+  if (area_title_actions) area_title_actions.classList.toggle('hidden', !is_visible);
+  if (show_area_title_editor_btn) show_area_title_editor_btn.hidden = is_visible;
 }
 
 function get_status_button(room, type) {
@@ -219,6 +164,60 @@ function handle_state_toggle(target) {
   target.classList.add('active');
 }
 
+function render_room_grid() {
+  const container = document.getElementById('roomGrid');
+  if (!container) return;
+
+  const titles = get_area_title_map();
+  container.innerHTML = ROOM_TEMPLATES.map(({ key, label }) => {
+    const title = titles[key] || label;
+    return `
+      <div class="room-card" data-room="${key}">
+        <div class="room-header">
+          <span class="room-title">${title}</span>
+          <div class="status-toggle">
+            <button type="button" class="status-btn" data-room="${key}" data-type="green">G</button>
+            <button type="button" class="status-btn" data-room="${key}" data-type="notgreen">B</button>
+            <button type="button" class="status-btn" data-room="${key}" data-type="password">P</button>
+          </div>
+        </div>
+        <div class="valves-container">
+          <div class="btn-group" data-room="${key}">
+            <button type="button" class="dial-btn" data-val="1">1</button>
+            <button type="button" class="dial-btn" data-val="2">2</button>
+            <button type="button" class="dial-btn" data-val="3">3</button>
+          </div>
+          <div class="prob-display" id="pr_${key}">1:33 2:33 3:33</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  document.querySelectorAll('.btn-group').forEach((group) => {
+    const room = group.dataset.room;
+    group.querySelectorAll('.dial-btn').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const clicked_val = Number(e.target.dataset.val);
+        group.querySelectorAll('.dial-btn').forEach((b) => b.classList.remove('active'));
+
+        selected_vals[room] = selected_vals[room] === clicked_val ? null : clicked_val;
+        if (selected_vals[room] !== null) e.target.classList.add('active');
+
+        calculate();
+        room_sync.sync_current_state();
+      });
+    });
+  });
+
+  document.querySelectorAll('.status-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      handle_state_toggle(e.target);
+      calculate();
+      room_sync.sync_current_state();
+    });
+  });
+}
+
 function reset_state_to_default({ sync = true } = {}) {
   room_keys.forEach((k) => { selected_vals[k] = null; });
   last_states = { green: null, password: null, not_greens: new Set() };
@@ -234,29 +233,29 @@ const room_sync = create_room_sync({
   room_path_prefix: 'gorodKroviRooms',
   url_param: 'room',
   get_state_payload: () => ({
-    selectedVals: { ...selected_vals },
+    selected_vals: { ...selected_vals },
     green: last_states.green,
     password: last_states.password,
-    notGreens: Array.from(last_states.not_greens)
+    not_greens: Array.from(last_states.not_greens)
   }),
   apply_remote_state: (payload) => {
     const has_no_selection = !payload || (
-      !payload.selectedVals && !payload.green && !payload.password && (!payload.notGreens || payload.notGreens.length === 0)
+      !payload.selected_vals && !payload.green && !payload.password && (!payload.not_greens || payload.not_greens.length === 0)
     );
-    const all_values_null = payload && payload.selectedVals
-      && Object.values(payload.selectedVals).every((v) => v === null)
-      && !payload.green && !payload.password && (!payload.notGreens || payload.notGreens.length === 0);
+    const all_values_null = payload && payload.selected_vals
+      && Object.values(payload.selected_vals).every((v) => v === null)
+      && !payload.green && !payload.password && (!payload.not_greens || payload.not_greens.length === 0);
 
     if (has_no_selection || all_values_null) {
       reset_state_to_default({ sync: false });
       return;
     }
 
-    Object.assign(selected_vals, payload.selectedVals || {});
+    Object.assign(selected_vals, payload.selected_vals || {});
     last_states = {
       green: payload.green || null,
       password: payload.password || null,
-      not_greens: new Set(Array.isArray(payload.notGreens) ? payload.notGreens : [])
+      not_greens: new Set(Array.isArray(payload.not_greens) ? payload.not_greens : [])
     };
 
     apply_selected_values_to_buttons();
@@ -267,12 +266,10 @@ const room_sync = create_room_sync({
 });
 
 function init_precomputed_paths() {
-  for (let start_idx = 0; start_idx < room_keys.length; start_idx++) {
-    for (let end_idx = 0; end_idx < room_keys.length; end_idx++) {
-      if (start_idx === end_idx) continue;
+  for (const start of room_keys) {
+    for (const end of room_keys) {
+      if (start === end) continue;
 
-      const start = room_keys[start_idx];
-      const end = room_keys[end_idx];
       const found_paths = [];
       const net_start = NETWORK[start];
 
@@ -287,24 +284,24 @@ function init_precomputed_paths() {
         }];
 
         while (stack.length > 0) {
-          const state = stack.pop();
+          const step_state = stack.pop();
 
-          if (state.mask === 63) {
-            if (state.curr === end) found_paths.push(state.path);
+          if (step_state.mask === 63) {
+            if (step_state.curr === end) found_paths.push(step_state.path);
             continue;
           }
 
-          const net_curr = NETWORK[state.curr];
+          const net_curr = NETWORK[step_state.curr];
           for (let next_dial = 1; next_dial <= 3; next_dial++) {
             const next_room = net_curr[next_dial];
             const next_bit = room_bit[next_room];
-            if (state.mask & next_bit) continue;
-            if (next_room === end && state.mask !== (63 ^ next_bit)) continue;
+            if (step_state.mask & next_bit) continue;
+            if (next_room === end && step_state.mask !== (63 ^ next_bit)) continue;
 
             stack.push({
               curr: next_room,
-              mask: state.mask | next_bit,
-              path: [...state.path, { room: state.curr, dial: next_dial, next: next_room }]
+              mask: step_state.mask | next_bit,
+              path: [...step_state.path, { room: step_state.curr, dial: next_dial, next: next_room }]
             });
           }
         }
@@ -403,6 +400,45 @@ function calculate() {
   panel.style.display = 'block';
 }
 
+function bind_area_title_editor_controls() {
+  const show_area_title_editor_btn = document.getElementById('showAreaTitleEditorBtn');
+  const save_room_title_btn = document.getElementById('saveRoomTitleBtn');
+  const reset_room_title_btn = document.getElementById('resetRoomTitleBtn');
+
+  if (show_area_title_editor_btn) {
+    show_area_title_editor_btn.addEventListener('click', () => {
+      set_area_title_editor_visible(true);
+      set_menu_open('menuPanel', true);
+    });
+  }
+
+  if (save_room_title_btn) {
+    save_room_title_btn.addEventListener('click', () => {
+      const next_titles = {};
+      room_keys.forEach((room_key) => {
+        const input = document.getElementById(`title_${room_key}`);
+        next_titles[room_key] = (input && input.value.trim()) || default_room_titles[room_key];
+      });
+
+      set_area_title_map(next_titles);
+      apply_room_title_labels();
+      set_area_title_editor_visible(false);
+      set_menu_open('menuPanel', false);
+      show_status('エリア名を保存しました');
+    });
+  }
+
+  if (reset_room_title_btn) {
+    reset_room_title_btn.addEventListener('click', () => {
+      reset_area_title_map();
+      apply_room_title_labels();
+      set_area_title_editor_visible(false);
+      set_menu_open('menuPanel', false);
+      show_status('エリア名を初期値に戻しました');
+    });
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   init_precomputed_paths();
 
@@ -412,9 +448,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const leave_room_btn = document.getElementById('leaveRoomBtn');
   const menu_toggle_btn = document.getElementById('menuToggleBtn');
   const menu_close_btn = document.getElementById('menuCloseBtn');
-  const show_area_title_editor_btn = document.getElementById('showAreaTitleEditorBtn');
-  const save_room_title_btn = document.getElementById('saveRoomTitleBtn');
-  const reset_room_title_btn = document.getElementById('resetRoomTitleBtn');
   const show_home_btn = document.getElementById('showHomeBtn');
   const reset_btn = document.getElementById('resetBtn');
 
@@ -434,47 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   bind_show_home_button(show_home_btn);
-
-  if (show_area_title_editor_btn) {
-    show_area_title_editor_btn.addEventListener('click', () => {
-      set_area_title_editor_visible(true);
-      set_menu_open('menuPanel', true);
-    });
-  }
-
-  if (save_room_title_btn) {
-    save_room_title_btn.addEventListener('click', () => {
-      const next_titles = {};
-      room_keys.forEach((room_key) => {
-        const input = document.getElementById(`title_${room_key}`);
-        next_titles[room_key] = (input && input.value.trim()) || DEFAULT_ROOM_TITLES[room_key];
-      });
-
-      set_area_title_map(next_titles);
-      apply_room_title_labels();
-      set_area_title_editor_visible(false);
-      set_menu_open('menuPanel', false);
-      show_status('エリア名を保存しました');
-    });
-  }
-
-  if (reset_room_title_btn) {
-    reset_room_title_btn.addEventListener('click', () => {
-      const default_titles = reset_area_title_map();
-      room_keys.forEach((room_key) => {
-        const input = document.getElementById(`title_${room_key}`);
-        if (input) {
-          input.value = '';
-          input.placeholder = default_titles[room_key];
-        }
-      });
-
-      apply_room_title_labels();
-      set_area_title_editor_visible(false);
-      set_menu_open('menuPanel', false);
-      show_status('エリア名を初期値に戻しました');
-    });
-  }
+  bind_area_title_editor_controls();
 
   if (reset_btn) {
     reset_btn.addEventListener('click', () => reset_state_to_default({ sync: true }));

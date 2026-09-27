@@ -1,4 +1,23 @@
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js';
+import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js';
+import { getFirestore, doc, getDoc, setDoc, updateDoc, increment } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
+
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyDo5BtxY6AE1cLsqJcML-AdijxLmtnrpn0',
+  authDomain: 'solver-80ad0.firebaseapp.com',
+  databaseURL: 'https://solver-80ad0-default-rtdb.firebaseio.com',
+  projectId: 'solver-80ad0',
+  storageBucket: 'solver-80ad0.firebasestorage.app',
+  messagingSenderId: '639285537821',
+  appId: '1:639285537821:web:399f1ab5f22f2ee64beaf4',
+  measurementId: 'G-7GD00HE91K'
+};
+
+const USER_CONNECTION_CACHE_KEY = 'sharedUserConnectionCache';
+
 let cached_user_name = null;
+let firebase_app = null;
+
 export function get_cached_user_name() {
   return cached_user_name;
 }
@@ -15,39 +34,11 @@ export function show_status(message, is_error = false) {
   status_node.style.color = is_error ? '#ff8a8a' : '#93c5fd';
 }
 
-export async function make_member_id() {
-  try {
-    if (window.firebase && typeof window.firebase.auth === 'function') {
-      const auth = window.firebase.auth();
-      let user = auth.currentUser;
-      if (!user) {
-        const credential = await auth.signInAnonymously();
-        user = credential.user;
-      }
-      if (user && user.uid) return user.uid;
-    }
-  } catch (e) {
-    console.warn('make_member_id auth error:', e);
-  }
-}
-
 export async function copy_to_clipboard(text) {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    await navigator.clipboard.writeText(text);
-    return;
+  if (!navigator.clipboard || !navigator.clipboard.writeText) {
+    throw new Error("Clipboard API is not supported in this browser.");
   }
-  const textarea = document.createElement('textarea');
-  textarea.value = text;
-  textarea.style.position = 'fixed';
-  textarea.style.opacity = '0';
-  document.body.appendChild(textarea);
-  textarea.focus();
-  textarea.select();
-  try {
-    document.execCommand('copy');
-  } finally {
-    document.body.removeChild(textarea);
-  }
+  await navigator.clipboard.writeText(text);
 }
 
 export function make_hash(string) {
@@ -60,19 +51,34 @@ export function make_hash(string) {
 }
 
 export function get_user_class(name) {
-  switch (true){
-    case name.includes('_115'):
-    case name.includes('_935'):
-      return 'rare'
-    case !name.includes('_'):
-      return 'special'
-    default:
-      return ''
-  }
+  if (name.includes('_115') || name.includes('_935')) return 'rare';
+  if (!name.includes('_')) return 'special';
+  return '';
 }
 
-const USER_CONNECTION_CACHE_KEY = 'sharedUserConnectionCache';
-const RECONNECT_SKIP_WINDOW_MS = 60 * 1000;
+export function get_firebase_app() {
+  if (!firebase_app) firebase_app = initializeApp(FIREBASE_CONFIG);
+  return firebase_app;
+}
+
+export function get_firebase_store() {
+  return getFirestore(get_firebase_app());
+}
+
+export async function make_member_id() {
+  try {
+    const auth = getAuth(get_firebase_app());
+    let user = auth.currentUser;
+    if (!user) {
+      const credential = await signInAnonymously(auth);
+      user = credential.user;
+    }
+    return user ? user.uid : null;
+  } catch (e) {
+    console.warn('make_member_id auth error:', e);
+    return null;
+  }
+}
 
 function read_json_cache(key) {
   try {
@@ -90,22 +96,20 @@ function write_json_cache(key, value) {
 }
 
 async function load_name_word_groups() {
-  const db = window.firebase.firestore();
-  const [doc_a, doc_b, doc_c, doc_d] = await Promise.all([
-    db.collection('Words').doc('groupA').get(),
-    db.collection('Words').doc('groupB').get(),
-    db.collection('Words').doc('groupC').get(),
-    db.collection('Words').doc('groupD').get()
+  const store = get_firebase_store();
+  const [snap_a, snap_b, snap_c, snap_d] = await Promise.all([
+    getDoc(doc(store, 'Words', 'groupA')),
+    getDoc(doc(store, 'Words', 'groupB')),
+    getDoc(doc(store, 'Words', 'groupC')),
+    getDoc(doc(store, 'Words', 'groupD'))
   ]);
 
-  const groups = {
-    a: doc_a.exists ? Object.keys(doc_a.data() || {}) : [],
-    b: doc_b.exists ? Object.keys(doc_b.data() || {}) : [],
-    c: doc_c.exists ? Object.keys(doc_c.data() || {}) : [],
-    d: doc_d.exists ? Object.keys(doc_d.data() || {}) : []
+  return {
+    a: snap_a.exists() ? Object.keys(snap_a.data() || {}) : [],
+    b: snap_b.exists() ? Object.keys(snap_b.data() || {}) : [],
+    c: snap_c.exists() ? Object.keys(snap_c.data() || {}) : [],
+    d: snap_d.exists() ? Object.keys(snap_d.data() || {}) : []
   };
-
-  return groups;
 }
 
 export async function generate_user_name(uid) {
@@ -129,44 +133,35 @@ export async function generate_user_name(uid) {
 }
 
 export async function record_user_connection(user_id) {
-  const now = Date.now();
   const cached_connection = read_json_cache(USER_CONNECTION_CACHE_KEY);
 
-  if (cached_connection && cached_connection.user_id === user_id
-    && (now - cached_connection.last_connected_at) < RECONNECT_SKIP_WINDOW_MS) {
+  if (cached_connection && cached_connection.user_id === user_id && cached_connection.name) {
     set_cached_user_name(cached_connection.name);
     return;
   }
 
   try {
-    if (!window.firebase || typeof window.firebase.firestore !== 'function') return;
-    const db = window.firebase.firestore();
-    const user_ref = db.collection('users').doc(user_id);
+    const store = get_firebase_store();
+    const user_ref = doc(store, 'users', user_id);
 
-    const known_name = get_cached_user_name()
-      || (cached_connection && cached_connection.user_id === user_id ? cached_connection.name : null);
-
-    const doc = await user_ref.get();
-    const data = doc.data() || {};
-    const user_name = (doc.exists && data.defaultName) || known_name || await generate_user_name(user_id);
+    const snapshot = await getDoc(user_ref);
+    const data = snapshot.data() || {};
+    const user_name = (snapshot.exists() && data.default_name) || await generate_user_name(user_id);
     set_cached_user_name(user_name);
 
-    if (!doc.exists) {
-      const new_doc = { count: 1, time: now };
-      if (user_name !== 'unknown user') new_doc.defaultName = user_name;
-      await user_ref.set(new_doc);
+    if (!snapshot.exists()) {
+      const new_doc = { count: 1, time: Date.now() };
+      if (user_name !== 'unknown user') new_doc.default_name = user_name;
+      await setDoc(user_ref, new_doc);
     } else {
-      const update_data = {
-        count: window.firebase.firestore.FieldValue.increment(1),
-        time: now
-      };
-      if (!data.defaultName && user_name !== 'unknown user') {
-        update_data.defaultName = user_name;
+      const update_data = { count: increment(1), time: Date.now() };
+      if (!data.default_name && user_name !== 'unknown user') {
+        update_data.default_name = user_name;
       }
-      await user_ref.update(update_data);
+      await updateDoc(user_ref, update_data);
     }
 
-    write_json_cache(USER_CONNECTION_CACHE_KEY, { user_id, name: user_name, last_connected_at: now });
+    write_json_cache(USER_CONNECTION_CACHE_KEY, { user_id, name: user_name });
   } catch (e) {
     console.warn('Failed to record user connection in Firestore:', e);
   }

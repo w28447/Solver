@@ -26,47 +26,44 @@ const DISTANCE_MAP = {
 const MAX_HISTORY = 4;
 const STORAGE_KEYS = {
   order: 'dewCandidateOrder',
-  titles: 'dewCustomTitles',
-  history: 'dewHistory'
+  titles: 'dewCustomTitles'
 };
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-let whisper_candidates = clone(DEFAULT_CANDIDATES);
-
 function load_custom_settings() {
+  let candidates = clone(DEFAULT_CANDIDATES);
+
   const saved_titles = localStorage.getItem(STORAGE_KEYS.titles);
   if (saved_titles) {
     try {
       const title_map = JSON.parse(saved_titles);
-      DEFAULT_CANDIDATES.forEach((candidate) => {
+      candidates.forEach((candidate) => {
         if (title_map[candidate.id]) candidate.label = title_map[candidate.id];
       });
     } catch (e) {}
   }
 
   const saved_order = localStorage.getItem(STORAGE_KEYS.order);
-  if (!saved_order) {
-    whisper_candidates = clone(DEFAULT_CANDIDATES);
-    return;
-  }
+  if (!saved_order) return candidates;
 
   try {
     const order_ids = JSON.parse(saved_order);
     const reordered = order_ids
-      .map((id) => DEFAULT_CANDIDATES.find((c) => c.id === id))
+      .map((id) => candidates.find((c) => c.id === id))
       .filter(Boolean);
-    DEFAULT_CANDIDATES.forEach((candidate) => {
+    candidates.forEach((candidate) => {
       if (!reordered.includes(candidate)) reordered.push(candidate);
     });
-    whisper_candidates = reordered;
+    return reordered;
   } catch (e) {
-    whisper_candidates = clone(DEFAULT_CANDIDATES);
+    return candidates;
   }
 }
-load_custom_settings();
+
+let whisper_candidates = load_custom_settings();
 
 const show_area_title_editor_btn = document.getElementById('showAreaTitleEditorBtn');
 const area_title_editor = document.getElementById('areaTitleEditor');
@@ -81,18 +78,11 @@ const history_section = document.getElementById('historySection');
 const selected_label = document.getElementById('selectedLabel');
 const reset_btn = document.getElementById('resetBtn');
 const player_count_group = document.getElementById('playerCountGroup');
-const room_input = document.getElementById('roomIdInput');
-const join_room_btn = document.getElementById('joinRoomBtn');
-const copy_room_btn = document.getElementById('copyRoomBtn');
-const leave_room_btn = document.getElementById('leaveRoomBtn');
-const show_home_btn = document.getElementById('showHomeBtn');
-const menu_toggle_btn = document.getElementById('menuToggleBtn');
-const menu_close_btn = document.getElementById('menuCloseBtn');
 
 const local_state = {
   selected_id: null,
   player_count: 1,
-  history: JSON.parse(localStorage.getItem(STORAGE_KEYS.history) || '[]')
+  history: []
 };
 
 function close_title_editor() {
@@ -138,82 +128,6 @@ function render_area_title_editor() {
   });
 }
 
-if (save_room_title_btn) {
-  save_room_title_btn.addEventListener('click', () => {
-    const title_map = {};
-    const order_ids = [];
-
-    whisper_candidates.forEach((candidate) => {
-      const input = document.getElementById(`title_${candidate.id}`);
-      if (input && input.value.trim()) {
-        candidate.label = input.value.trim();
-        title_map[candidate.id] = candidate.label;
-      }
-      order_ids.push(candidate.id);
-    });
-
-    localStorage.setItem(STORAGE_KEYS.titles, JSON.stringify(title_map));
-    localStorage.setItem(STORAGE_KEYS.order, JSON.stringify(order_ids));
-
-    update_ui();
-    room_sync.sync_current_state();
-    close_title_editor();
-  });
-}
-
-if (reset_room_title_btn) {
-  reset_room_title_btn.addEventListener('click', () => {
-    localStorage.removeItem(STORAGE_KEYS.titles);
-    localStorage.removeItem(STORAGE_KEYS.order);
-    whisper_candidates = clone(DEFAULT_CANDIDATES);
-
-    if (area_title_editor && !area_title_editor.classList.contains('hidden')) {
-      render_area_title_editor();
-    }
-
-    update_ui();
-    room_sync.sync_current_state();
-  });
-}
-
-if (show_area_title_editor_btn && area_title_editor && area_title_actions) {
-  show_area_title_editor_btn.addEventListener('click', () => {
-    const is_hidden = area_title_editor.classList.contains('hidden');
-    area_title_editor.classList.toggle('hidden', !is_hidden);
-    area_title_actions.classList.toggle('hidden', !is_hidden);
-    show_area_title_editor_btn.textContent = is_hidden ? '候補地名変更を閉じる' : '候補地名変更';
-
-    if (is_hidden) render_area_title_editor();
-  });
-}
-
-const room_sync = create_room_sync({
-  room_path_prefix: 'derEisendracheRooms',
-  url_param: 'room',
-  get_state_payload: () => ({
-    selectedId: local_state.selected_id,
-    playerCount: local_state.player_count,
-    history: local_state.history
-  }),
-  apply_remote_state: (payload) => {
-    const is_payload_empty = !payload || (payload.selectedId === undefined && (!payload.history || payload.history.length === 0));
-
-    if (is_payload_empty) {
-      local_state.selected_id = null;
-      local_state.history = [];
-      if (payload && payload.playerCount !== undefined) local_state.player_count = payload.playerCount;
-      update_ui();
-      return;
-    }
-
-    if (payload.selectedId !== undefined) local_state.selected_id = payload.selectedId;
-    if (payload.playerCount !== undefined) local_state.player_count = payload.playerCount;
-    if (Array.isArray(payload.history)) local_state.history = payload.history;
-    update_ui();
-  },
-  on_room_ready: (room_ref) => touch_room_created_at(room_ref)
-});
-
 function get_valid_next_candidates() {
   if (local_state.history.length >= MAX_HISTORY) return [];
 
@@ -231,16 +145,6 @@ function get_valid_next_candidates() {
 
 function record_history(id) {
   if (!local_state.history.includes(id)) local_state.history.push(id);
-}
-
-function select_candidate(id) {
-  if (local_state.selected_id) record_history(local_state.selected_id);
-  local_state.selected_id = id;
-
-  if (local_state.history.length >= MAX_HISTORY - 1) record_history(id);
-
-  update_ui();
-  room_sync.sync_current_state();
 }
 
 function render_candidates() {
@@ -303,7 +207,16 @@ function update_ui() {
 
   render_candidates();
   render_history();
-  localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(local_state.history));
+}
+
+function select_candidate(id) {
+  if (local_state.selected_id) record_history(local_state.selected_id);
+  local_state.selected_id = id;
+
+  if (local_state.history.length >= MAX_HISTORY - 1) record_history(id);
+
+  update_ui();
+  room_sync.sync_current_state();
 }
 
 function reset_state_to_default({ sync = true } = {}) {
@@ -313,34 +226,124 @@ function reset_state_to_default({ sync = true } = {}) {
   if (sync) room_sync.sync_current_state();
 }
 
-if (player_count_group) {
-  player_count_group.addEventListener('click', (e) => {
-    const has_started = local_state.selected_id !== null || local_state.history.length > 0;
-    if (has_started) return;
+const room_sync = create_room_sync({
+  room_path_prefix: 'derEisendracheRooms',
+  url_param: 'room',
+  get_state_payload: () => ({
+    selected_id: local_state.selected_id,
+    player_count: local_state.player_count,
+    history: local_state.history
+  }),
+  apply_remote_state: (payload) => {
+    const is_payload_empty = !payload || (payload.selected_id === undefined && (!payload.history || payload.history.length === 0));
 
-    const btn = e.target.closest('.player-btn');
-    if (!btn || btn.disabled) return;
+    if (is_payload_empty) {
+      local_state.selected_id = null;
+      local_state.history = [];
+      if (payload && payload.player_count !== undefined) local_state.player_count = payload.player_count;
+      update_ui();
+      return;
+    }
 
-    local_state.player_count = parseInt(btn.dataset.count, 10);
+    if (payload.selected_id !== undefined) local_state.selected_id = payload.selected_id;
+    if (payload.player_count !== undefined) local_state.player_count = payload.player_count;
+    if (Array.isArray(payload.history)) local_state.history = payload.history;
     update_ui();
-    room_sync.sync_current_state();
-  });
+  },
+  on_room_ready: (room_ref) => touch_room_created_at(room_ref)
+});
+
+function bind_title_editor_controls() {
+  if (show_area_title_editor_btn && area_title_editor && area_title_actions) {
+    show_area_title_editor_btn.addEventListener('click', () => {
+      const is_hidden = area_title_editor.classList.contains('hidden');
+      area_title_editor.classList.toggle('hidden', !is_hidden);
+      area_title_actions.classList.toggle('hidden', !is_hidden);
+      show_area_title_editor_btn.textContent = is_hidden ? '候補地名変更を閉じる' : '候補地名変更';
+
+      if (is_hidden) render_area_title_editor();
+    });
+  }
+
+  if (save_room_title_btn) {
+    save_room_title_btn.addEventListener('click', () => {
+      const title_map = {};
+      const order_ids = [];
+
+      whisper_candidates.forEach((candidate) => {
+        const input = document.getElementById(`title_${candidate.id}`);
+        if (input && input.value.trim()) {
+          candidate.label = input.value.trim();
+          title_map[candidate.id] = candidate.label;
+        }
+        order_ids.push(candidate.id);
+      });
+
+      localStorage.setItem(STORAGE_KEYS.titles, JSON.stringify(title_map));
+      localStorage.setItem(STORAGE_KEYS.order, JSON.stringify(order_ids));
+
+      update_ui();
+      room_sync.sync_current_state();
+      close_title_editor();
+    });
+  }
+
+  if (reset_room_title_btn) {
+    reset_room_title_btn.addEventListener('click', () => {
+      localStorage.removeItem(STORAGE_KEYS.titles);
+      localStorage.removeItem(STORAGE_KEYS.order);
+      whisper_candidates = clone(DEFAULT_CANDIDATES);
+
+      if (area_title_editor && !area_title_editor.classList.contains('hidden')) {
+        render_area_title_editor();
+      }
+
+      update_ui();
+      room_sync.sync_current_state();
+    });
+  }
 }
 
-if (reset_btn) {
-  reset_btn.addEventListener('click', () => reset_state_to_default({ sync: true }));
+function bind_player_controls() {
+  if (player_count_group) {
+    player_count_group.addEventListener('click', (e) => {
+      const has_started = local_state.selected_id !== null || local_state.history.length > 0;
+      if (has_started) return;
+
+      const btn = e.target.closest('.player-btn');
+      if (!btn || btn.disabled) return;
+
+      local_state.player_count = parseInt(btn.dataset.count, 10);
+      update_ui();
+      room_sync.sync_current_state();
+    });
+  }
+
+  if (reset_btn) {
+    reset_btn.addEventListener('click', () => reset_state_to_default({ sync: true }));
+  }
 }
-
-bind_room_controls(
-  { room_input, join_room_btn, copy_room_btn, leave_room_btn },
-  room_sync,
-  'dew'
-);
-
-bind_menu_toggle(menu_toggle_btn, menu_close_btn, 'menuPanel', close_title_editor);
-bind_show_home_button(show_home_btn);
 
 document.addEventListener('DOMContentLoaded', () => {
+  const room_input = document.getElementById('roomIdInput');
+  const join_room_btn = document.getElementById('joinRoomBtn');
+  const copy_room_btn = document.getElementById('copyRoomBtn');
+  const leave_room_btn = document.getElementById('leaveRoomBtn');
+  const menu_toggle_btn = document.getElementById('menuToggleBtn');
+  const menu_close_btn = document.getElementById('menuCloseBtn');
+  const show_home_btn = document.getElementById('showHomeBtn');
+
+  bind_room_controls(
+    { room_input, join_room_btn, copy_room_btn, leave_room_btn },
+    room_sync,
+    'dew'
+  );
+
+  bind_menu_toggle(menu_toggle_btn, menu_close_btn, 'menuPanel', close_title_editor);
+  bind_show_home_button(show_home_btn);
+  bind_title_editor_controls();
+  bind_player_controls();
+
   update_ui();
   room_sync.init();
 });

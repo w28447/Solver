@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Newton's Cookbook</title>
+    <link rel="stylesheet" href="../shared/shared.css" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header class="app-header" aria-label="ページヘッダー">
+      <div class="app-header-title">Newton's Cookbook</div>
+      <button class="menu-toggle" id="menuToggleBtn" type="button" aria-label="メニューを開く" aria-controls="menuPanel" aria-expanded="false">☰</button>
+    </header>
+
+    <div class="menu-panel" id="menuPanel" aria-hidden="true">
+      <div class="menu-panel-inner">
+        <div class="menu-header">
+          <span id="menuHeaderTitle">メニュー</span>
+          <button class="menu-toggle" id="menuCloseBtn" type="button" aria-label="メニューを閉じる">✕</button>
+        </div>
+
+        <hr class="menu-divider" />
+
+        <div class="menu-actions">
+          <button class="btn" id="showHomeBtn" type="button">トップへ戻る</button>
+        </div>
+      </div>
+    </div>
+
+    <main class="shell">
+
+      <section class="search-panel" aria-labelledby="searchHeading">
+        <div class="search-header">
+          <h2 class="search-title" id="searchHeading">検索</h2>
+        </div>
+        <div class="search-controls">
+          <div class="custom-select-wrapper" id="customGumSelect">
+            <div class="custom-select-trigger" id="customSelectTrigger">
+              <span class="custom-select-placeholder">-- ガム一覧から選択 --</span>
+            </div>
+            <div class="custom-select-dropdown" id="customSelectDropdown">
+            </div>
+          </div>
+          <button type="button" id="clearSearchBtn" class="btn-clear">クリア</button>
+        </div>
+        <div class="search-filter-row" role="group" aria-label="検索対象の絞り込み">
+          <button type="button" id="filterInputBtn" class="filter-toggle-btn active" aria-pressed="true">素材</button>
+          <button type="button" id="filterOutputBtn" class="filter-toggle-btn active" aria-pressed="true">完成品</button>
+        </div>
+      </section>
+
+      <section id="searchResultsSection" class="search-results" aria-live="polite">
+        <div class="results-heading">
+          <h3 class="results-title" id="searchResultsTitle">検索結果</h3>
+          <span id="searchResultsCount" class="results-count"></span>
+        </div>
+        <div id="searchResultsGrid" class="results-grid"></div>
+      </section>
+
+      <section class="today-section" id="todaySection" aria-labelledby="todayHeadline">
+        <div class="today-header">
+          <div class="today-meta">
+            <h2 class="today-headline" id="todayHeadline">
+              今日のレシピ
+            </h2>
+          </div>
+
+          <div class="countdown-box" aria-label="更新カウントダウン">
+            <span class="countdown-label">次の更新まで</span>
+            <span id="countdownTimer" class="countdown-timer">--:--:--</span>
+          </div>
+        </div>
+
+        <div id="todayRecipesGrid" class="recipes-grid" aria-live="polite">
+
+        </div>
+      </section>
+
+      <section class="accordion-wrap" aria-labelledby="accordionBtn">
+        <button 
+          type="button" 
+          id="accordionToggleBtn" 
+          class="accordion-toggle" 
+          aria-expanded="false" 
+          aria-controls="accordionContent"
+        >
+          <span class="accordion-title">
+            <span>他の日程のレシピを見る（1サイクル全49日分）</span>
+          </span>
+          <span class="accordion-arrow">▼</span>
+        </button>
+
+        <div id="accordionContent" class="accordion-content" aria-hidden="true">
+
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./script.js"></script>
+  </body>
+</html>

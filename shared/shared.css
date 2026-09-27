@@ -24,6 +24,27 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+@font-face {
+  font-family: 'Line Seed JP';
+  src: url('https://cdn.jsdelivr.net/npm/line-seed-jp/woff2/LINESeedJP_OTF_Rg.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Line Seed JP';
+  src: url('https://cdn.jsdelivr.net/npm/line-seed-jp/woff2/LINESeedJP_OTF_Bd.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ヘッダーとトップページ（main.shellなど）以外にフォントを適用 */
+body:not(.home) .shell:not(:first-child) {
+    font-family: 'Line Seed JP', 'Courier New', 'Segoe UI', 'Noto Sans JP', sans-serif;
+}
+
+
 body {
   padding: calc(76px + env(safe-area-inset-top, 0px)) 12px 12px;
   display: flex;

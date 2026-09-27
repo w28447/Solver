@@ -1,5 +1,10 @@
-import { show_status, get_cached_user_name, make_member_id, 
-  make_hash, record_user_connection, get_user_class, copy_to_clipboard } from './utils.js';
+import { ref, child, get, set, remove, onValue, onDisconnect } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js';
+import { getDatabase } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js';
+import {
+  show_status, get_cached_user_name, make_member_id,
+  make_hash, record_user_connection, get_user_class,
+  copy_to_clipboard, get_firebase_app
+} from './utils.js';
 
 export function sanitize_room_id(raw_value) {
   return String(raw_value || '')
@@ -63,7 +68,14 @@ export function bind_room_controls(elements, room_sync, url_param) {
         await copy_to_clipboard(url.toString());
         show_status('URLをコピーしました');
       } catch (e) {
-        show_status('URLのコピーに失敗しました', true);
+        let message = 'URLのコピーに失敗しました';
+
+        if (e.name === 'NotAllowedError') {
+          message = 'コピー権限が拒否されたか、操作の有効期限が切れました';
+        } else if (e.message && e.message.includes('not supported')) {
+          message = 'お使いのブラウザはコピー機能に対応していません';
+        }
+        show_status(message, true);
       }
     });
   }
@@ -73,14 +85,21 @@ export function bind_room_controls(elements, room_sync, url_param) {
   }
 }
 
-export function touch_room_created_at(room_ref) {
+export async function touch_room_created_at(room_ref) {
   if (!room_ref) return;
-  room_ref.once('value').then((snapshot) => {
+  try {
+    const snapshot = await get(room_ref);
     const room_data = snapshot.val() || {};
-    if (!Number(room_data.createdAt || 0)) {
-      room_ref.child('createdAt').set(Date.now());
+    if (!Number(room_data.created_at || 0)) {
+      await set(child(room_ref, 'created_at'), Date.now());
     }
-  }).catch(() => {});
+  } catch (e) {}
+}
+
+const SYNC_DEBOUNCE_MS = 250;
+
+function get_member_count(member_ids) {
+  return member_ids.length > 0 ? member_ids.length : 1;
 }
 
 export function create_room_sync(config) {
@@ -100,7 +119,10 @@ export function create_room_sync(config) {
     members_ref: null,
     member_id: null,
     has_realtime_sync: false,
-    is_applying_remote: false
+    is_applying_remote: false,
+    unsub_state: null,
+    unsub_members: null,
+    sync_debounce_timer: null
   };
 
   let last_cached_members = {};
@@ -116,16 +138,13 @@ export function create_room_sync(config) {
     const list_container = document.getElementById('roomMemberListDropdown');
     if (!meta_container) return;
 
-    const current_uid = state.member_id
-      || (window.firebase && window.firebase.auth && window.firebase.auth().currentUser && window.firebase.auth().currentUser.uid)
-      || 'guest';
+    const current_uid = state.member_id || 'guest';
     const my_member = members[current_uid];
     const my_name = (my_member && my_member.name) || get_cached_user_name() || '';
     const member_ids = Object.keys(members);
-    const member_count = member_ids.length > 0 ? member_ids.length : 1;
+    const member_count = get_member_count(member_ids);
 
-    const name_class = ['username'];
-    name_class.push(get_user_class(my_name));
+    const name_class = ['username', get_user_class(my_name)];
 
     meta_container.innerHTML = `
       <span class="${name_class.join(' ')}">${my_name}</span>
@@ -142,7 +161,7 @@ export function create_room_sync(config) {
     badge.onclick = () => {
       const was_hidden = list_container.style.display === 'none';
       list_container.style.display = was_hidden ? 'flex' : 'none';
-      badge.textContent = `人数: ${member_ids.length > 0 ? member_ids.length : 1} ${was_hidden ? '▲' : '▼'}`;
+      badge.textContent = `人数: ${get_member_count(member_ids)} ${was_hidden ? '▲' : '▼'}`;
       badge.setAttribute('aria-expanded', String(was_hidden));
 
       if (was_hidden) render_member_dropdown(member_ids, members, current_uid, list_container);
@@ -160,8 +179,7 @@ export function create_room_sync(config) {
 
     list_container.innerHTML = other_ids.map((id) => {
       const member_name = (members[id] || {}).name || '???';
-      const item_class = ['member-dropdown-item'];
-      item_class.push(get_user_class(member_name));
+      const item_class = ['member-dropdown-item', get_user_class(member_name)];
       return `<div class="${item_class.join(' ')}">${member_name}</div>`;
     }).join('');
   }
@@ -178,7 +196,7 @@ export function create_room_sync(config) {
     state.member_id = member_hash;
 
     try {
-      const snapshot = await state.members_ref.once('value');
+      const snapshot = await get(state.members_ref);
       const members = snapshot.val() || {};
 
       let final_key = member_hash;
@@ -189,40 +207,43 @@ export function create_room_sync(config) {
       }
       state.member_id = final_key;
 
-      const my_member_ref = state.members_ref.child(final_key);
+      const my_member_ref = child(state.members_ref, final_key);
       const current_data = members[final_key] || {};
 
-      await my_member_ref.set({
-        joinedAt: current_data.joinedAt || Date.now(),
+      await set(my_member_ref, {
+        joined_at: current_data.joined_at || Date.now(),
         name: display_name,
         fp: fingerprint
       });
 
-      my_member_ref.onDisconnect().remove();
+      onDisconnect(my_member_ref).remove();
     } catch (e) {
       console.warn('setup_presence failed:', e);
     }
 
-    state.members_ref.on('value', (snapshot) => {
+    state.unsub_members = onValue(state.members_ref, (snapshot) => {
       const members = snapshot.val() || {};
       last_cached_members = members;
       update_status_display(`共有中: ${state.room_id}`, false, members);
 
       if (Object.keys(members).length === 0 && state.room_ref) {
-        state.room_ref.remove().catch(() => {});
+        remove(state.room_ref).catch(() => {});
       }
     });
 
     bind_page_close_cleanup();
 
-    const snapshot = await state.state_ref.once('value');
+    const snapshot = await get(state.state_ref);
     if (!snapshot.exists()) sync_current_state();
   }
 
   function detach() {
-    if (state.state_ref) state.state_ref.off('value');
-    if (state.members_ref) state.members_ref.off('value');
-    if (state.room_ref) state.room_ref.off('value');
+    if (state.sync_debounce_timer) clearTimeout(state.sync_debounce_timer);
+    state.sync_debounce_timer = null;
+    if (state.unsub_state) state.unsub_state();
+    if (state.unsub_members) state.unsub_members();
+    state.unsub_state = null;
+    state.unsub_members = null;
     state.room_ref = null;
     state.state_ref = null;
     state.members_ref = null;
@@ -230,14 +251,14 @@ export function create_room_sync(config) {
 
   async function remove_current_member() {
     if (!state.member_id || !state.members_ref) return;
-    const my_member_ref = state.members_ref.child(state.member_id);
+    const my_member_ref = child(state.members_ref, state.member_id);
     try {
-      await my_member_ref.remove();
+      await remove(my_member_ref);
       if (!state.members_ref) return;
-      const snapshot = await state.members_ref.once('value');
+      const snapshot = await get(state.members_ref);
       const members = snapshot.val() || {};
       if (Object.keys(members).length === 0 && state.room_ref) {
-        await state.room_ref.remove().catch(() => {});
+        await remove(state.room_ref).catch(() => {});
       }
     } catch (e) {
       console.warn('remove_current_member failed:', e);
@@ -252,26 +273,21 @@ export function create_room_sync(config) {
 
   function sync_current_state() {
     if (!state.has_realtime_sync || !state.state_ref || state.is_applying_remote) return;
-    const payload = Object.assign({ updatedAt: Date.now() }, get_state_payload());
-    state.state_ref.set(payload).catch((e) => {
-      console.error('create_room_sync: write failed', e);
-      notify_status('共有の更新に失敗しました', true);
-    });
+
+    if (state.sync_debounce_timer) clearTimeout(state.sync_debounce_timer);
+    state.sync_debounce_timer = setTimeout(() => {
+      state.sync_debounce_timer = null;
+      const payload = Object.assign({ updated_at: Date.now() }, get_state_payload());
+      set(state.state_ref, payload).catch((e) => {
+        console.error('create_room_sync: write failed', e);
+        notify_status('共有の更新に失敗しました', true);
+      });
+    }, SYNC_DEBOUNCE_MS);
   }
 
   async function init() {
-    if (!firebase_config || !window.firebase) {
-      state.has_realtime_sync = false;
-      state.db = null;
-      notify_status('ローカルモード: サーバー未設定');
-      return;
-    }
-
     try {
-      if (!window.firebase.apps || !window.firebase.apps.length) {
-        window.firebase.initializeApp(firebase_config);
-      }
-      state.db = window.firebase.database();
+      state.db = getDatabase(get_firebase_app());
       state.has_realtime_sync = true;
     } catch (e) {
       console.error('Firebase init failed', e);
@@ -281,8 +297,7 @@ export function create_room_sync(config) {
     }
 
     try {
-      const auth = window.firebase.auth();
-      if (!auth.currentUser) await auth.signInAnonymously();
+      await make_member_id();
     } catch (e) {
       console.warn('Anonymous auth failed during init:', e);
       notify_status('認証に失敗しました', true);
@@ -299,15 +314,14 @@ export function create_room_sync(config) {
       return;
     }
 
-    const room_ref = state.db.ref(`${room_path_prefix}/${room_id}`);
-    const state_ref = room_ref.child('state');
+    const room_ref = ref(state.db, `${room_path_prefix}/${room_id}`);
     state.room_ref = room_ref;
-    state.state_ref = state_ref;
-    state.members_ref = room_ref.child('members');
+    state.state_ref = child(room_ref, 'state');
+    state.members_ref = child(room_ref, 'members');
 
     if (typeof on_room_ready === 'function') on_room_ready(room_ref);
 
-    state_ref.on('value', (snapshot) => {
+    state.unsub_state = onValue(state.state_ref, (snapshot) => {
       const data = snapshot.val();
       if (!data) return;
       state.is_applying_remote = true;
@@ -319,14 +333,14 @@ export function create_room_sync(config) {
     await setup_presence();
   }
 
-  function set_room_id(next_room_id) {
+  async function set_room_id(next_room_id) {
     const normalized = sanitize_room_id(next_room_id);
     if (!normalized) {
-      leave_room();
+      await leave_room();
       return;
     }
 
-    if (state.member_id && state.members_ref) remove_current_member();
+    if (state.member_id && state.members_ref) await remove_current_member();
     state.room_id = normalized;
 
     const input = document.getElementById('roomIdInput');
@@ -334,11 +348,11 @@ export function create_room_sync(config) {
 
     set_url_room_param(url_param, normalized);
     detach();
-    init();
+    await init();
   }
 
-  function leave_room() {
-    if (state.member_id && state.members_ref) remove_current_member();
+  async function leave_room() {
+    if (state.member_id && state.members_ref) await remove_current_member();
     detach();
     state.room_id = '';
     state.member_id = null;
@@ -352,14 +366,3 @@ export function create_room_sync(config) {
 
   return { state, init, set_room_id, leave_room, sync_current_state };
 }
-
-const firebase_config = {
-  apiKey: 'AIzaSyDo5BtxY6AE1cLsqJcML-AdijxLmtnrpn0',
-  authDomain: 'solver-80ad0.firebaseapp.com',
-  databaseURL: 'https://solver-80ad0-default-rtdb.firebaseio.com',
-  projectId: 'solver-80ad0',
-  storageBucket: 'solver-80ad0.firebasestorage.app',
-  messagingSenderId: '639285537821',
-  appId: '1:639285537821:web:399f1ab5f22f2ee64beaf4',
-  measurementId: 'G-7GD00HE91K'
-};
