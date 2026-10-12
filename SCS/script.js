@@ -1,5 +1,6 @@
-import { bind_menu_toggle, bind_show_home_button, bind_modal_toggle, set_menu_open } from '../shared/menu.js';
+import { doc, updateDoc, setDoc, increment } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
 import { get_firebase_store } from '../shared/utils.js';
+import { bind_menu_toggle, bind_show_home_button, bind_modal_toggle, set_menu_open } from '../shared/menu.js';
 
 const WORD_GROUPS = {
   rave: ["harpoon", "trees", "dance", "basement", "slasher", "memories", "charms", "boat", "kevinsmith", "fairies"],
