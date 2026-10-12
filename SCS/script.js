@@ -1,4 +1,5 @@
 import { bind_menu_toggle, bind_show_home_button, bind_modal_toggle, set_menu_open } from '../shared/menu.js';
+import { get_firebase_store } from '../shared/utils.js';
 
 const WORD_GROUPS = {
   rave: ["harpoon", "trees", "dance", "basement", "slasher", "memories", "charms", "boat", "kevinsmith", "fairies"],
@@ -145,6 +146,26 @@ function init_events() {
   get_element("clearInput").addEventListener("click", clear_input);
   get_element("resetAll").addEventListener("click", reset_all);
 }
+
+async function record_access_count() {
+  try {
+    const store = get_firebase_store();
+    const counter_doc = doc(store, 'analytics', 'scs_pageviews');
+    const payload = { views: increment(1) };
+
+    try {
+      await updateDoc(counter_doc, payload);
+    } catch (update_err) {
+      await setDoc(counter_doc, payload, { merge: true });
+    }
+  } catch (err) {
+    console.warn('Failed to record access count:', err.message);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  record_access_count();
+});
 
 init_menu();
 init_events();
