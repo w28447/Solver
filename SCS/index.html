@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, viewport-fit=cover, user-scalable=no"
+    />
+    <title>Shaolin Shuffle Cipher Solver</title>
+    <link rel="icon" href="../shared/favicon.ico" />
+    <link rel="apple-touch-icon" href="../shared/apple-touch-icon.png" />
+    <link rel="stylesheet" href="../shared/shared.css" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+
+  <body>
+    <!-- ヘッダー -->
+    <header class="app-header" aria-label="ページヘッダー">
+      <div class="app-header-title">Shaolin Shuffle Cipher Solver</div>
+
+      <div class="app-header-actions">
+        <button
+          id="manualBtn"
+          class="manual-toggle"
+          type="button"
+          aria-label="使い方を開く"
+          aria-expanded="false"
+          aria-controls="manualModal"
+        >
+          <svg
+            class="manual-button-icon"
+            viewBox="0 0 160 40"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <rect
+              x="3"
+              y="3"
+              width="28"
+              height="34"
+              rx="2"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            />
+            <path
+              d="M23 3v9h8"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            />
+            <line
+              x1="9"
+              y1="18"
+              x2="25"
+              y2="18"
+              stroke="currentColor"
+              stroke-width="2"
+            />
+            <line
+              x1="9"
+              y1="24"
+              x2="25"
+              y2="24"
+              stroke="currentColor"
+              stroke-width="2"
+            />
+            <text
+              x="38"
+              y="26"
+              fill="currentColor"
+              font-size="17"
+              font-family="'Noto Sans JP', 'Segoe UI', sans-serif"
+              font-weight="700"
+            >使い方</text>
+          </svg>
+        </button>
+
+        <button
+          id="menuToggleBtn"
+          class="menu-toggle"
+          type="button"
+          aria-label="メニューを開く"
+          aria-expanded="false"
+          aria-controls="menuPanel"
+        >☰</button>
+      </div>
+    </header>
+
+    <!-- メニュー -->
+    <div class="menu-panel" id="menuPanel" aria-hidden="true">
+      <div class="menu-panel-inner">
+        <div class="menu-header">
+          <span>メニュー</span>
+          <button
+            class="menu-toggle"
+            id="menuCloseBtn"
+            type="button"
+            aria-label="メニューを閉じる"
+          >✕</button>
+        </div>
+
+        <div class="menu-actions menu-actions--top-gap">
+          <button class="btn" id="showHomeBtn" type="button">
+            トップへ戻る
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 使い方モーダル -->
+    <div id="manualModal" class="manual-modal" aria-hidden="true" inert>
+      <div class="manual-modal-inner">
+        <div class="manual-modal-header">
+          <h2 class="manual-modal-title">使い方</h2>
+          <button
+            id="manualCloseBtn"
+            class="manual-close"
+            type="button"
+            aria-label="使い方を閉じる"
+          >×</button>
+        </div>
+
+        <div class="manual-modal-body">
+          <section class="manual-section">
+            <h3 class="manual-section-title">基本操作</h3>
+            <p>
+              表示されたアルファベットを順番に入力してください。
+              入力に合う単語と、次に入力できる記号だけが表示されます。
+            </p>
+          </section>
+
+          <section class="manual-section">
+            <h3 class="manual-section-title">文字の入力</h3>
+            <ul>
+              <li>次に入力できる文字から、該当する記号を選びます</li>
+              <li>入力した文字に応じて、候補の単語が絞り込まれます</li>
+              <li>入力をやり直す場合は「クリア」を押します</li>
+              <li>失敗した場合は「次の単語へ」を押します</li>
+            </ul>
+          </section>
+
+          <section class="manual-section">
+            <h3 class="manual-section-title">リセット</h3>
+            <p>
+              すべての入力状態を最初からやり直す場合は、
+              「リセット」を押します。
+            </p>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <!-- メインコンテンツ -->
+    <main class="app-shell">
+      <div class="panel-grid">
+        <!-- 入力済み文字 -->
+        <section class="panel">
+          <div class="toolbar input-toolbar">
+            <h2>入力した文字</h2>
+            <span class="count" id="missCount">失敗：0回</span>
+            <span class="count" id="candidateCount">候補：70件</span>
+          </div>
+
+          <!-- 入力文字とクリアボタン -->
+          <div class="input-display-row">
+            <div class="input-display" id="prefixDisplay">—</div>
+            <button
+              class="btn btn-neutral"
+              id="clearInput"
+              type="button"
+            >クリア</button>
+          </div>
+
+          <!-- 次の単語へ -->
+          <button
+            class="btn btn-primary next-word-button"
+            id="nextWord"
+            type="button"
+          >次の単語へ</button>
+
+          <!-- 記号候補を次の単語へボタンの下に配置 -->
+          <div class="symbol-candidates">
+            <div class="toolbar">
+              <h2>次に入力できる文字</h2>
+              <span class="count" id="letterCount">0文字</span>
+            </div>
+
+            <div class="letters" id="letters"></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- リセット -->
+      <div class="control-actions reset-actions">
+        <button
+          class="btn btn-neutral"
+          id="resetAll"
+          type="button"
+        >リセット</button>
+      </div>
+    </main>
+
+    <script type="module" src="./script.js"></script>
+  </body>
+</html>

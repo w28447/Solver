@@ -25,7 +25,9 @@ export function set_menu_open(menu_id, is_open) {
     menu.setAttribute('inert', '');
   }
 
-  if (toggle_btn) toggle_btn.setAttribute('aria-expanded', String(is_open));
+  if (toggle_btn) {
+    toggle_btn.setAttribute('aria-expanded', String(is_open));
+  }
 }
 
 export function bind_menu_toggle(toggle_btn, close_btn, menu_panel_id, on_close) {
@@ -47,10 +49,81 @@ export function bind_menu_toggle(toggle_btn, close_btn, menu_panel_id, on_close)
 
   if (panel) {
     panel.addEventListener('click', (event) => {
-      if (event.target === panel) set_menu_open(menu_panel_id, false);
+      if (event.target === panel) {
+        set_menu_open(menu_panel_id, false);
+      }
     });
   }
 }
+
+
+/* =========================================================
+   共通モーダル
+   ========================================================= */
+
+export function set_modal_open(modal_id, is_open, toggle_btn = null) {
+  const modal = document.getElementById(modal_id);
+  if (!modal) return;
+
+  if (!is_open) {
+    if (modal.contains(document.activeElement)) {
+      if (toggle_btn) {
+        toggle_btn.focus();
+      } else {
+        document.body.focus();
+      }
+    }
+
+    document.body.style.overflow = '';
+  } else {
+    document.body.style.overflow = 'hidden';
+  }
+
+  modal.classList.toggle('open', is_open);
+  modal.setAttribute('aria-hidden', String(!is_open));
+
+  if (is_open) {
+    modal.removeAttribute('inert');
+  } else {
+    modal.setAttribute('inert', '');
+  }
+
+  if (toggle_btn) {
+    toggle_btn.setAttribute('aria-expanded', String(is_open));
+  }
+}
+
+
+export function bind_modal_toggle(toggle_btn, close_btn, modal_id) {
+  const modal = document.getElementById(modal_id);
+  if (!modal) return;
+
+  if (toggle_btn) {
+    toggle_btn.addEventListener('click', () => {
+      const is_open = modal.classList.contains('open');
+      set_modal_open(modal_id, !is_open, toggle_btn);
+    });
+  }
+
+  if (close_btn) {
+    close_btn.addEventListener('click', () => {
+      set_modal_open(modal_id, false, toggle_btn);
+    });
+  }
+
+  modal.addEventListener('click', (event) => {
+    if (event.target === modal) {
+      set_modal_open(modal_id, false, toggle_btn);
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && modal.classList.contains('open')) {
+      set_modal_open(modal_id, false, toggle_btn);
+    }
+  });
+}
+
 
 export function go_home() {
   try {

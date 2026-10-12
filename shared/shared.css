@@ -211,3 +211,197 @@ body {
   #roomIdInput { flex: 1 1 100%; width: 100%; min-width: 0; }
   .share-row .btn { flex: 1 1 0; width: auto; text-align: center; white-space: nowrap; padding-left: 10px; padding-right: 10px; }
 }
+
+/* ヘッダー操作ボタン */
+.app-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* 使い方ボタン */
+.manual-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 100px;
+  height: 38px;
+  padding: 0 7px;
+  background: var(--panel);
+  border: 1px solid #2d4d5d;
+  border-radius: var(--radius);
+  color: #d5f1ff;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.manual-toggle:hover {
+  background: #243746;
+}
+
+.manual-toggle:active {
+  transform: translateY(1px);
+}
+
+.manual-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* 書類アイコン＋「使い方」 */
+.manual-button-icon {
+  display: block;
+  width: 88px;
+  height: 24px;
+  flex: 0 0 88px;
+}
+
+/* スマートフォン */
+@media (max-width: 640px) {
+  .app-header-actions {
+    gap: 6px;
+  }
+
+  .manual-toggle {
+    min-width: 96px;
+    height: 38px;
+    padding: 0 5px;
+  }
+
+  .manual-button-icon {
+    width: 86px;
+    height: 24px;
+    flex-basis: 86px;
+  }
+}
+
+/* 操作説明モーダル */
+.manual-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  width: 100vw;
+  height: 100dvh;
+  padding: 20px;
+  background: rgba(6, 6, 10, 0.82);
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+}
+
+.manual-modal.open {
+  display: flex;
+}
+
+.manual-modal-inner {
+  width: min(720px, 100%);
+  max-height: min(760px, calc(100dvh - 40px));
+  background: var(--bg-elevated);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+}
+
+.manual-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+
+.manual-modal-title {
+  margin: 0;
+  color: #dfefff;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.manual-close {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid #2d4d5d;
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: #d5f1ff;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.manual-close:hover {
+  background: #243746;
+}
+
+.manual-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.manual-modal-body {
+  padding: 18px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  color: var(--text);
+  line-height: 1.7;
+}
+
+.manual-section {
+  margin: 0 0 20px;
+}
+
+.manual-section:last-child {
+  margin-bottom: 0;
+}
+
+.manual-section-title {
+  margin: 0 0 8px;
+  color: #dfefff;
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.manual-section p {
+  margin: 0 0 8px;
+}
+
+.manual-section ul {
+  margin: 0;
+  padding-left: 1.4em;
+}
+
+.manual-section li {
+  margin-bottom: 5px;
+}
+
+
+/* スマートフォン */
+@media (max-width: 640px) {
+
+
+  .manual-modal {
+    padding: 10px;
+  }
+
+  .manual-modal-inner {
+    max-height: calc(100dvh - 20px);
+  }
+
+  .manual-modal-header {
+    padding: 12px 14px;
+  }
+
+  .manual-modal-body {
+    padding: 14px;
+  }
+}
+
