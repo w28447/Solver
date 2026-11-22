@@ -3,7 +3,7 @@ import { getDatabase } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase
 import {
   show_status, get_cached_user_name, make_member_id,
   make_hash, record_user_connection, get_user_class,
-  copy_to_clipboard, get_firebase_app
+  copy_to_clipboard, get_firebase_app, escape_html
 } from './utils.js';
 
 export function sanitize_room_id(raw_value) {
@@ -122,7 +122,8 @@ export function create_room_sync(config) {
     is_applying_remote: false,
     unsub_state: null,
     unsub_members: null,
-    sync_debounce_timer: null
+    sync_debounce_timer: null,
+    page_close_cleanup: null
   };
 
   let last_cached_members = {};
@@ -147,7 +148,7 @@ export function create_room_sync(config) {
     const name_class = ['username', get_user_class(my_name)];
 
     meta_container.innerHTML = `
-      <span class="${name_class.join(' ')}">${my_name}</span>
+      <span class="${name_class.join(' ')}">${escape_html(my_name)}</span>
       <button id="memberCountBadge" class="btn btn-neutral member-count-badge" aria-expanded="false">人数: ${member_count} ▼</button>
     `;
 
@@ -180,7 +181,7 @@ export function create_room_sync(config) {
     list_container.innerHTML = other_ids.map((id) => {
       const member_name = (members[id] || {}).name || '???';
       const item_class = ['member-dropdown-item', get_user_class(member_name)];
-      return `<div class="${item_class.join(' ')}">${member_name}</div>`;
+      return `<div class="${item_class.join(' ')}">${escape_html(member_name)}</div>`;
     }).join('');
   }
 
@@ -244,6 +245,11 @@ export function create_room_sync(config) {
     if (state.unsub_members) state.unsub_members();
     state.unsub_state = null;
     state.unsub_members = null;
+    if (state.page_close_cleanup) {
+      window.removeEventListener('beforeunload', state.page_close_cleanup);
+      window.removeEventListener('pagehide', state.page_close_cleanup);
+      state.page_close_cleanup = null;
+    }
     state.room_ref = null;
     state.state_ref = null;
     state.members_ref = null;
@@ -266,9 +272,13 @@ export function create_room_sync(config) {
   }
 
   function bind_page_close_cleanup() {
-    const cleanup = () => remove_current_member();
-    window.addEventListener('beforeunload', cleanup, { passive: true });
-    window.addEventListener('pagehide', cleanup, { passive: true });
+    if (state.page_close_cleanup) {
+      window.removeEventListener('beforeunload', state.page_close_cleanup);
+      window.removeEventListener('pagehide', state.page_close_cleanup);
+    }
+    state.page_close_cleanup = () => remove_current_member();
+    window.addEventListener('beforeunload', state.page_close_cleanup, { passive: true });
+    window.addEventListener('pagehide', state.page_close_cleanup, { passive: true });
   }
 
   function sync_current_state() {

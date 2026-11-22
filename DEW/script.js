@@ -1,5 +1,6 @@
 import { create_room_sync, bind_room_controls, touch_room_created_at } from '../shared/room.js';
 import { bind_menu_toggle, bind_show_home_button } from '../shared/menu.js';
+import { escape_html } from '../shared/utils.js';
 
 const DEFAULT_CANDIDATES = [
   { id: 'church', label: '教会時計', detail: '教会のドラゴンの上にある時計' },
@@ -110,9 +111,9 @@ function render_area_title_editor() {
     const at_end = index === whisper_candidates.length - 1;
 
     row.innerHTML = `
-      <label class="menu-label" for="title_${candidate.id}">${candidate.label} (位置 ${index + 1})</label>
+      <label class="menu-label" for="title_${candidate.id}">${escape_html(candidate.label)} (位置 ${index + 1})</label>
       <div class="editor-row-controls">
-        <input id="title_${candidate.id}" class="menu-title-input" type="text" maxlength="20" placeholder="${candidate.label}" />
+        <input id="title_${candidate.id}" class="menu-title-input" type="text" maxlength="20" placeholder="${escape_html(candidate.label)}" />
         <button type="button" class="btn btn-neutral move-up-btn" data-index="${index}" ${at_start ? 'disabled' : ''}>▲</button>
         <button type="button" class="btn btn-neutral move-down-btn" data-index="${index}" ${at_end ? 'disabled' : ''}>▼</button>
       </div>
@@ -157,7 +158,7 @@ function render_candidates() {
     btn.type = 'button';
     btn.className = 'candidate-btn';
     btn.dataset.id = candidate.id;
-    btn.innerHTML = `<div class="btn-title">${candidate.label}</div><div class="btn-sub">${candidate.detail}</div>`;
+    btn.innerHTML = `<div class="btn-title">${escape_html(candidate.label)}</div><div class="btn-sub">${escape_html(candidate.detail)}</div>`;
     btn.addEventListener('click', () => select_candidate(candidate.id));
     candidate_buttons.appendChild(btn);
   });

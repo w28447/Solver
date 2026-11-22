@@ -27,6 +27,12 @@ export function set_cached_user_name(name) {
   return cached_user_name;
 }
 
+export function escape_html(text) {
+  return String(text ?? '').replace(/[&<>"']/g, (ch) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]
+  ));
+}
+
 export function show_status(message, is_error = false) {
   const status_node = document.getElementById('shareStatus');
   if (!status_node) return;

@@ -1,6 +1,6 @@
 import { create_room_sync, bind_room_controls, touch_room_created_at } from '../shared/room.js';
 import { bind_menu_toggle, bind_show_home_button, set_menu_open } from '../shared/menu.js';
-import { show_status } from '../shared/utils.js';
+import { show_status, escape_html } from '../shared/utils.js';
 
 const NETWORK = {
   Dept: { 1: 'Armo', 2: 'Infi', 3: 'Drag' },
@@ -171,10 +171,11 @@ function render_room_grid() {
   const titles = get_area_title_map();
   container.innerHTML = ROOM_TEMPLATES.map(({ key, label }) => {
     const title = titles[key] || label;
+    const safe_title = escape_html(title);
     return `
       <div class="room-card" data-room="${key}">
         <div class="room-header">
-          <span class="room-title">${title}</span>
+          <span class="room-title">${safe_title}</span>
           <div class="status-toggle">
             <button type="button" class="status-btn" data-room="${key}" data-type="green">G</button>
             <button type="button" class="status-btn" data-room="${key}" data-type="notgreen">B</button>
@@ -333,7 +334,7 @@ function update_live_probabilities() {
           freqs[step.room][step.dial]++;
           freqs[step.room].total++;
         });
-        freqs[e].total++;
+        if (!end) freqs[e].total++;
       });
     });
   });

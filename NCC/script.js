@@ -248,13 +248,14 @@ function render_full_cycle_accordion_content() {
 
   const cards_html = get_cycle_day_order(current_day).map((day, index) => {
     const recipes = (day_groups.get(day) || []).slice().sort((a, b) => a.slot - b.slot);
-    const next_date = get_date_for_day_offset(index + 1);
+    const is_today = day === current_day;
+    const date_label = is_today ? '本日開催中！' : `次回: ${get_next_calendar_date_for_cycle_day(day, current_day)}`;
 
     return `
       <div class="cycle-day-card" id="cycle-day-${day}">
         <div class="cycle-day-header">
           <div class="cycle-day-title">
-            <span>次回: ${next_date}</span>
+            <span>${date_label}</span>
           </div>
         </div>
         <div class="recipes-grid">
